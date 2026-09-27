@@ -25,10 +25,12 @@ python3 -m unittest discover -s tests -v
 
 ## 现在的行为
 
-- `=` 走的是和 `+` 一样的分支（`return current | mask`）：`u=r` 只加读位、不清写/执行位，给出 `777`。
-- `spec.split(",")[0]` 只取第一个子句：`u+x,g-w` 里的 `g-w` 被丢掉。
-- `parse_octal` 直接 `int(text, 8)`：非法数字、超长、负数都只抛裸异常，没有位置信息。
-- `format_mode` 只看低 9 位：`4755`、`2755`、`1755` 都显示成 `rwxr-xr-x`。
+- `=` 先清掉这一组的 rwx 三位再置位：`u=r` 对 `777` 给 `477`；`+`/`-` 保持加/减语义。
+- 逗号分隔的子句按顺序全部作用：`u+x,g-w` 对 `777` 给 `757`；空子句报错并给出位置。
+- `parse_octal` 逐位校验 0–7、最多 4 位：`888` 报「第 1 位不是八进制数字」，空串、负数、超长都报错并给位置。
+- `format_mode` 显示特殊位：`4755` → `rwsr-xr-x`、`2755` → `rwxr-sr-x`、`1755` → `rwxr-xr-t`，没有 x 时用大写 `S`/`T`。
+- 未知 who、未知操作符、未知权限字母都报 `ModeError` 并指出位置；`tests/posix_reference.py`
+  是按 POSIX chmod 语义写的参考实现，`tests/test_against_reference.py` 用样例和 1 万组随机用例对照结果与错误类型。
 
 ## 计划新增的能力
 
